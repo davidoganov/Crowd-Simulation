@@ -4,7 +4,7 @@ Created on Mon May 22 2023
 @author: HWM
 """
 import numpy as np
-from agent import Agents
+from Agent import Agents
 
 class Environment:
     """
@@ -50,17 +50,6 @@ class Environment:
             self.grid[y, x] = "Exit"
 
     def is_obstacle(self, x: int, y: int) -> bool:
-        """
-        Check if the given position is occupied by an obstacle.
-
-        Args:
-            x (int): The x-coordinate of the position.
-            y (int): The y-coordinate of the position.
-
-        Returns:
-            bool: True if the position is occupied by an obstacle, False otherwise.
-
-        """
         return self.grid[y, x] is not None
 
     def is_within_bounds(self, x: int, y: int) -> bool:
