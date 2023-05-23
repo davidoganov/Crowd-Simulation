@@ -193,7 +193,7 @@ class Agents():
             Returns:
                 Bool - True: Person agent at exit point False: Not escaped 
             """
-            if (self.Exit.reached(xPos, yPos)): # check position against exit
+            if (self.Exit.exitReached(xPos, yPos)): # check position against exit
                 self.escapedCount += 1 # raise escapedCount
                 return True
             else:
@@ -379,7 +379,7 @@ class Agents():
             self.freedom = Environment.grid[xPos, yPos]
     
         
-        def reached(self, xPos: int, yPos: int) -> bool:
+        def exitReached(self, xPos: int, yPos: int) -> bool:
             """
             Boolean notes Person agent as reached the exit successfully, 
                 updating counters as needed. 
