@@ -3,8 +3,8 @@ Created on Mon May 22 2023
 
 @author: HWM
 """
+
 import numpy as np
-from Agent import Agents
 
 class Environment:
     """
@@ -43,14 +43,13 @@ class Environment:
         self.exits = [(0, height-1), (width-1, 0)]  # Hardcoded exit positions
 
         for x, y in self.obstacles:
-            obstacle = Agents.Obstacle(x, y)
-            self.grid[y, x] = obstacle
+            self.grid[y, x] = "Obstacle"
 
         for x, y in self.exits:
             self.grid[y, x] = "Exit"
 
     def is_obstacle(self, x: int, y: int) -> bool:
-        return self.grid[y, x] is not None
+        return self.grid[y, x] == "Obstacle"
 
     def is_within_bounds(self, x: int, y: int) -> bool:
         """
