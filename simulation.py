@@ -23,6 +23,8 @@ class Simulation:
         for pos in exit_positions:
             environment.add_exit(*pos)
         self.agents = Agents(environment, num_people, num_fires)
+        self.timestep = 0
+        self.escaped_counts = []
 
         # Generate random positions for people
         for i in range(num_people):
@@ -60,12 +62,26 @@ class Simulation:
 
             if person.escaped:
                 print(f"Person at ({person.xPos}, {person.yPos}) has escaped!")
+                person.time_to_escape = self.timestep
             elif person.is_dead():
                 print(f"Person at ({person.xPos}, {person.yPos}) has died!")
             else:
                 surviving_people.append(person)  # Only add person to new list if they are not dead or escaped
+                
+        self.timestep += 1
+        self.escaped_counts.append(len([person for person in self.agents.persons if person.escaped]))  # Record the number of escaped people
 
         escaped_people = [person for person in self.agents.persons if person.escaped]
+        escape_times = [p.time_to_escape for p in self.agents.persons if p.time_to_escape is not None]
+        num_escaped = len(escape_times)
+
+        # Print the results
+        print(f"Number of people who escaped: {num_escaped}")
+        if num_escaped > 0:
+            print(f"Average escape time: {sum(escape_times) / num_escaped}")
+            print(f"Minimum escape time: {min(escape_times)}")
+            print(f"Maximum escape time: {max(escape_times)}")
+            
         self.agents.persons = surviving_people  # Replace old list with new one
 
         for fire in self.agents.fires:
