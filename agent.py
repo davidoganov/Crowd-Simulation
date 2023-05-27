@@ -39,7 +39,7 @@ class Agents:
         """
 
         panic = 0
-        health = 50
+        health = 200
 
         def __init__(self, xPos: int, yPos: int, env):
             """
@@ -54,6 +54,8 @@ class Agents:
             self.xPos = xPos
             self.yPos = yPos
             self.escaped = False
+            self.time_to_escape = None  # None means person has not escaped yet
+
 
         def update_panic(self):
             """
@@ -122,18 +124,13 @@ class Agents:
             Returns:
                 bool: True if the person is dead, False otherwise.
             """
-            return self.health <= 0 or self.escaped
+            return self.health <= 0
 
-        def escaped(self) -> bool:
-            """
-            Checks if the person has escaped.
-
-            Returns:
-                bool: True if the person has escaped, False otherwise.
-            """
-            if (self.xPos, self.yPos) in self.environment.exits:
+        def escaped(self, timestep) -> bool:
+            if (self.xPos, self.yPos) in self.environment.exits and self.time_to_escape is None:
                 self.escaped = True
-            return self.escaped
+                self.time_to_escape = timestep
+            return self.is_escaped
 
     class Fire:
         """
@@ -157,25 +154,29 @@ class Agents:
             """
             Spreads the fire to neighboring cells in a randomized manner.
             """
+            spread_probability = 0.2  # Only a 20% chance for fire to spread to a neighboring cell
             directions = [(dx, dy) for dx in [-1, 0, 1] for dy in [-1, 0, 1]]
             random.shuffle(directions)
             for dx, dy in directions:
                 new_x = self.xPos + dx
                 new_y = self.yPos + dy
-                if self.environment.is_within_bounds(new_x, new_y) and \
-                   not self.environment.is_obstacle(new_x, new_y) and \
-                   not self.environment.is_fire(new_x, new_y):
-                    new_fire = Agents.Fire(new_x, new_y, self.environment)
-                    self.environment.add_fire(new_fire)
-                    return
+                if (self.environment.is_within_bounds(new_x, new_y) and 
+                    not self.environment.is_obstacle(new_x, new_y) and 
+                    not self.environment.is_fire(new_x, new_y)):
+                    if random.random() < spread_probability:  # Use a random number to decide whether to spread
+                        new_fire = Agents.Fire(new_x, new_y, self.environment)
+                        self.environment.add_fire(new_fire)
+                        return
+
 
         def calculate_effect(self, persons):
             """
             Calculates the effect of the fire on nearby persons' health.
-
-            Args:
-                persons (list): The list of all persons in the simulation.
             """
             for person in persons:
-                if np.sqrt((person.xPos - self.xPos) ** 2 + (person.yPos - self.yPos) ** 2) < 3:
-                    person.health -= 1
+                distance = np.sqrt((person.xPos - self.xPos) ** 2 + (person.yPos - self.yPos) ** 2)
+                if distance < 3:  # Fire affects person if they are within 3 units
+                    person.health -= 1  # Fire decreases health by 1 unit
+                elif distance < 5:  # Fire affects person if they are within 5 units, but less so than if they are within 3 units
+                    person.health -= 0.5  # Fire decreases health by 0.5 units
+
