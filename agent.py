@@ -32,7 +32,19 @@ class Agents:
             fire = self.Fire(random.randint(0, env.width - 1), random.randint(0, env.height - 1), self.environment)
             self.fires.append(fire)
             self.environment.add_fire(fire)
+            
+    def update(self):
+        # Update state of each person
+        for person in self.persons:
+            person.update_panic()
+            person.move_towards_least_congested_exit(consider_others=True)
+            person.follow_crowd(self.persons)
 
+        # Update state of each fire
+        for fire in self.fires:
+            fire.fire_spread()
+            fire.calculate_effect(self.persons)
+                
     class Person:
         """
         Represents a person in the simulation.
@@ -55,6 +67,8 @@ class Agents:
             self.yPos = yPos
             self.escaped = False
             self.time_to_escape = None  # None means person has not escaped yet
+            self.social_distance = 5
+            self.congestion_radius = 10  # consider persons within a distance of 10 as contributing to congestion
 
 
         def update_panic(self):
@@ -80,6 +94,8 @@ class Agents:
             """
             return self.environment.is_within_bounds(self.xPos + dx, self.yPos + dy) and \
                    not self.environment.is_obstacle(self.xPos + dx, self.yPos + dy)
+                   
+                   
 
         def move(self, dx: int, dy: int):
             """
@@ -92,16 +108,58 @@ class Agents:
             if self.can_move(dx, dy):
                 self.xPos += dx
                 self.yPos += dy
+            print(f'Person moved to: ({self.xPos}, {self.yPos})')
 
-        def move_towards_least_congested_exit(self):
-            """
-            Moves the person towards the least congested exit.
-            """
-            exits_with_congestion = [(exit, sum(np.sqrt((p.xPos - exit[0]) ** 2 + (p.yPos - exit[1]) ** 2) < 5 for p in self.environment.persons)) for exit in self.environment.exits]
-            least_congested_exit = min(exits_with_congestion, key=lambda e: e[1])[0]
-            dx = np.sign(least_congested_exit[0] - self.xPos)
-            dy = np.sign(least_congested_exit[1] - self.yPos)
-            self.move(dx, dy)
+
+        def move_towards_least_congested_exit(self, consider_others=False):
+            least_congested_exit = None
+            least_congestion = float('inf')
+
+            # Calculate congestion for each exit
+            for exit in self.environment.exits:
+                congestion = sum(1 for person in self.environment.persons if self.distance_to(person) <= self.congestion_radius)
+                if congestion < least_congestion:
+                    least_congestion = congestion
+                    least_congested_exit = exit
+
+            if consider_others:
+                # Try to stay close to others while moving towards the exit
+                nearest_person = min((person for person in self.environment.persons if person != self),
+                                 key=self.distance_to, default=None)
+                if nearest_person is not None and self.distance_to(nearest_person) > self.social_distance:
+                    self.move_towards(nearest_person)
+                    return
+
+            # Move towards the least congested exit
+            if least_congested_exit is not None:
+                self.move_towards(least_congested_exit)
+        
+        def distance_to(self, other):
+            return ((self.xPos - other.xPos)**2 + (self.yPos - other.yPos)**2)**0.5
+
+        def move_towards(self, position):
+            # Check if position is a Person instance or a tuple
+            if isinstance(position, Agents.Person):
+                dx = position.xPos - self.xPos
+                dy = position.yPos - self.yPos
+            else:
+                dx = position[0] - self.xPos
+                dy = position[1] - self.yPos
+
+            distance = np.sqrt(dx**2 + dy**2)
+
+            if distance > 0:
+                dx /= distance
+                dy /= distance
+
+            new_x = int(self.xPos + dx)
+            new_y = int(self.yPos + dy)
+
+            if self.environment.is_within_bounds(new_x, new_y) and \
+                not self.environment.is_obstacle(new_x, new_y):
+                    self.xPos, self.yPos = new_x, new_y
+
+
 
         def follow_crowd(self, persons):
             """
@@ -126,11 +184,13 @@ class Agents:
             """
             return self.health <= 0
 
-        def escaped(self, timestep) -> bool:
+        def is_escaped(self, timestep) -> bool:
             if (self.xPos, self.yPos) in self.environment.exits and self.time_to_escape is None:
                 self.escaped = True
                 self.time_to_escape = timestep
-            return self.is_escaped
+                return True
+            else:
+                return False
 
     class Fire:
         """
