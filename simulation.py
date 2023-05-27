@@ -20,22 +20,12 @@ class Simulation:
             exit_positions (list): A list of tuples representing the positions of exits.
         """
         environment = Environment(env_width, env_height)
-        for pos in exit_positions:
-            environment.add_exit(*pos)
         self.agents = Agents(environment, num_people, num_fires)
         self.timestep = 0
         self.escaped_counts = []
+        self.escaped_persons = []
 
-        # Generate random positions for people
-        for i in range(num_people):
-            x, y = np.random.randint(0, env_width), np.random.randint(0, env_height)
-            self.agents.persons.append(Agents.Person(x, y, self.agents.environment))
-
-        # Generate random positions for fires
-        for i in range(num_fires):
-            x, y = np.random.randint(0, env_width), np.random.randint(0, env_height)
-            self.agents.fires.append(Agents.Fire(x, y, environment))
-
+        
         # Generate random positions for obstacles
         for i in range(num_obstacles):
             x, y = np.random.randint(0, env_width), np.random.randint(0, env_height)
@@ -44,6 +34,7 @@ class Simulation:
         # Add exits to the environment
         for exit in exit_positions:
             environment.add_exit(*exit)
+            
 
     def step(self):
         """
@@ -57,24 +48,32 @@ class Simulation:
                 if not person.escaped:
                     if person.panic < 3:
                         person.move_towards_least_congested_exit()
-                    else:
+                    elif 3 <= person.panic < 7:  # Moderate panic level: try to stay near others but still aim for the least congested exit
+                        person.move_towards_least_congested_exit(consider_others=True)
+                    else:  # High panic level: follow the crowd
                         person.follow_crowd(self.agents.persons)
+            # After updating each person's state, update the environment.
+            self.agents.environment.add_person(person)
 
-            if person.escaped:
-                print(f"Person at ({person.xPos}, {person.yPos}) has escaped!")
+
+            if person.is_escaped(self.timestep):
                 person.time_to_escape = self.timestep
+                self.escaped_persons.append(person)
             elif person.is_dead():
                 print(f"Person at ({person.xPos}, {person.yPos}) has died!")
             else:
                 surviving_people.append(person)  # Only add person to new list if they are not dead or escaped
                 
         self.timestep += 1
-        self.escaped_counts.append(len([person for person in self.agents.persons if person.escaped]))  # Record the number of escaped people
+        self.agents.persons = surviving_people  # Replace old list with new one
+        self.escaped_counts.append(len(self.escaped_persons))  # Record the number of escaped people
 
-        escaped_people = [person for person in self.agents.persons if person.escaped]
-        escape_times = [p.time_to_escape for p in self.agents.persons if p.time_to_escape is not None]
-        num_escaped = len(escape_times)
 
+
+        escape_times = [p.time_to_escape for p in self.escaped_persons]
+        num_escaped = len(self.escaped_persons)
+            
+        
         # Print the results
         print(f"Number of people who escaped: {num_escaped}")
         if num_escaped > 0:
@@ -82,8 +81,10 @@ class Simulation:
             print(f"Minimum escape time: {min(escape_times)}")
             print(f"Maximum escape time: {max(escape_times)}")
             
-        self.agents.persons = surviving_people  # Replace old list with new one
+        
 
         for fire in self.agents.fires:
             fire.fire_spread()
             fire.calculate_effect(self.agents.persons)
+            # After updating each fire's state, update the environment.
+            self.agents.environment.add_fire(fire)
