@@ -1,75 +1,134 @@
-"""
-Created on Mon May 22 2023
-
-@author: HWM
-"""
-
 import numpy as np
+import matplotlib.pyplot as plt
 
 class Environment:
-    """
-    Class: Environment
-    Description: This class represents the environment in the crowd evacuation simulation. 
-                 It manages the grid, obstacles, exits, and provides utility methods to interact with the environment.
-
-    Attributes:
-        width (int): The width of the environment grid.
-        height (int): The height of the environment grid.
-        grid (np.ndarray): The 2D grid representing the environment.
-        obstacles (List[Tuple[int, int]]): The positions of the obstacles in the environment.
-        exits (List[Tuple[int, int]]): The positions of the exits in the environment.
-
-    Methods:
-        __init__(self, width, height): Initializes the Environment object with the specified width and height.
-        is_obstacle(self, x, y): Checks if the given position is occupied by an obstacle.
-        is_within_bounds(self, x, y): Checks if the given position is within the bounds of the environment.
-        print_grid(self): Prints the grid representation of the environment.
-
-    """
-
     def __init__(self, width: int, height: int):
         """
-        Initialize the Environment object.
+        Initializes a new instance of the Environment class.
 
         Args:
             width (int): The width of the environment grid.
             height (int): The height of the environment grid.
-
         """
         self.width = width
         self.height = height
         self.grid = np.full((height, width), None)
-        self.obstacles = []  # List to store obstacle positions
-        self.exits = [(0, height-1), (width-1, 0)]  # Hardcoded exit positions
+        self.obstacles = set()
+        self.exits = []
+        self.persons = []
+        self.fires = []
 
-        for x, y in self.obstacles:
-            self.grid[y, x] = "Obstacle"
+    def add_obstacle(self, x: int, y: int):
+        """
+        Adds an obstacle at the specified position in the environment.
 
-        for x, y in self.exits:
-            self.grid[y, x] = "Exit"
+        Args:
+            x (int): The x-coordinate of the obstacle position.
+            y (int): The y-coordinate of the obstacle position.
+        """
+        self.obstacles.add((x, y))
+        self.grid[y, x] = "Obstacle"
+
+    def add_exit(self, x: int, y: int):
+        """
+        Adds an exit at the specified position in the environment.
+
+        Args:
+            x (int): The x-coordinate of the exit position.
+            y (int): The y-coordinate of the exit position.
+        """
+        self.exits.append((x, y))
+        self.grid[y, x] = "Exit"
+
+    def add_person(self, person):
+        """
+        Adds a person to the environment.
+
+        Args:
+            person (Person): The Person object to be added.
+        """
+        self.persons.append(person)
+
+    def add_fire(self, fire):
+        """
+        Adds a fire at the specified position in the environment.
+
+        Args:
+            fire (Fire): The Fire object to be added.
+        """
+        for existing_fire in self.fires:
+            if (existing_fire.xPos, existing_fire.yPos) == (fire.xPos, fire.yPos):
+                return  # Do not add fire if a fire already exists at the same position
+        self.fires.append(fire)
+        self.grid[fire.yPos, fire.xPos] = "Fire"
+
+    def is_fire(self, x: int, y: int) -> bool:
+        """
+        Checks if the specified position in the environment is a fire.
+
+        Args:
+            x (int): The x-coordinate of the position to check.
+            y (int): The y-coordinate of the position to check.
+
+        Returns:
+            bool: True if the position is a fire, False otherwise.
+        """
+        for fire in self.fires:
+            if (fire.xPos, fire.yPos) == (x, y):
+                return True
+        return False
 
     def is_obstacle(self, x: int, y: int) -> bool:
-        return self.grid[y, x] == "Obstacle"
+        """
+        Checks if the specified position in the environment is an obstacle.
+
+        Args:
+            x (int): The x-coordinate of the position to check.
+            y (int): The y-coordinate of the position to check.
+
+        Returns:
+            bool: True if the position is an obstacle, False otherwise.
+        """
+        return (x, y) in self.obstacles
 
     def is_within_bounds(self, x: int, y: int) -> bool:
         """
-        Check if the given position is within the bounds of the environment.
+        Checks if the specified position is within the bounds of the environment.
 
         Args:
-            x (int): The x-coordinate of the position.
-            y (int): The y-coordinate of the position.
+            x (int): The x-coordinate of the position to check.
+            y (int): The y-coordinate of the position to check.
 
         Returns:
-            bool: True if the position is within the bounds, False otherwise.
-
+            bool: True if the position is within the environment bounds, False otherwise.
         """
         return 0 <= x < self.width and 0 <= y < self.height
 
-    def print_grid(self):
+    def plot(self, agents):
         """
-        Print the grid representation of the environment.
+        Plots the environment grid with agents and objects.
 
+        Args:
+            agents (Agents): The Agents object containing the agents and objects to be plotted.
         """
-        for row in self.grid:
-            print(row)
+        fig, ax = plt.subplots()
 
+        for exit in self.exits:
+            ax.scatter(*exit, color='green', label='Exit')
+
+        for obstacle in self.obstacles:
+            ax.scatter(*obstacle, color='black', label='Obstacle')
+
+        for person in agents.persons:
+            ax.scatter(person.xPos, person.yPos, color='blue', label='Person')
+
+        for fire in agents.fires:
+            ax.scatter(fire.xPos, fire.yPos, color='red', label='Fire')
+
+        ax.set_xticks(np.arange(0, self.width, 1))
+        ax.set_yticks(np.arange(0, self.height, 1))
+        ax.grid(True)
+        handles, labels = ax.get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        plt.legend(by_label.values(), by_label.keys())
+        plt.show()
