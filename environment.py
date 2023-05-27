@@ -26,8 +26,10 @@ class Environment:
             x (int): The x-coordinate of the obstacle position.
             y (int): The y-coordinate of the obstacle position.
         """
-        self.obstacles.add((x, y))
-        self.grid[y, x] = "Obstacle"
+        if self.grid[y, x] is None:
+            self.refresh_grid()  # Refresh the grid after adding a person
+            self.obstacles.add((x, y))
+            self.grid[y, x] = "Obstacle"
 
     def add_exit(self, x: int, y: int):
         """
@@ -37,8 +39,9 @@ class Environment:
             x (int): The x-coordinate of the exit position.
             y (int): The y-coordinate of the exit position.
         """
-        self.exits.append((x, y))
-        self.grid[y, x] = "Exit"
+        if self.grid[y, x] is None:
+            self.exits.append((x, y))
+            self.grid[y, x] = "Exit"
 
     def add_person(self, person):
         """
@@ -47,7 +50,11 @@ class Environment:
         Args:
             person (Person): The Person object to be added.
         """
-        self.persons.append(person)
+        if (int(person.xPos), int(person.yPos)) not in self.exits and self.grid[int(person.yPos), int(person.xPos)] is None:
+            if not person.is_dead() and not person.escaped:  # only add the person if they are not dead and haven't escaped
+                self.persons.append(person)
+                self.refresh_grid()  # Refresh the grid after adding a person
+                self.grid[int(person.yPos), int(person.xPos)] = person  # store actual person object
 
     def add_fire(self, fire):
         """
@@ -56,11 +63,10 @@ class Environment:
         Args:
             fire (Fire): The Fire object to be added.
         """
-        for existing_fire in self.fires:
-            if (existing_fire.xPos, existing_fire.yPos) == (fire.xPos, fire.yPos):
-                return  # Do not add fire if a fire already exists at the same position
-        self.fires.append(fire)
-        self.grid[fire.yPos, fire.xPos] = "Fire"
+        if (fire.xPos, fire.yPos) not in self.exits and self.grid[fire.yPos, fire.xPos] is None:
+            self.fires.append(fire)
+            self.refresh_grid()  # Refresh the grid after adding a person
+            self.grid[fire.yPos, fire.xPos] = fire  # store actual fire object
 
     def is_fire(self, x: int, y: int) -> bool:
         """
@@ -73,10 +79,7 @@ class Environment:
         Returns:
             bool: True if the position is a fire, False otherwise.
         """
-        for fire in self.fires:
-            if (fire.xPos, fire.yPos) == (x, y):
-                return True
-        return False
+        return (x, y) in [(fire.xPos, fire.yPos) for fire in self.fires]
 
     def is_obstacle(self, x: int, y: int) -> bool:
         """
@@ -103,6 +106,34 @@ class Environment:
             bool: True if the position is within the environment bounds, False otherwise.
         """
         return 0 <= x < self.width and 0 <= y < self.height
+
+    def update(self):
+        """
+        Updates the state of the environment and its objects.
+        """
+        for person in self.persons:
+            person.update()
+            if person.health <= 0:
+                self.grid[person.yPos, person.xPos] = None
+                self.persons.remove(person)
+                
+        for fire in self.fires:
+            fire.update()
+        self.refresh_grid()
+
+    def refresh_grid(self):
+        """
+        Refreshes the state of the grid based on the current objects in the environment.
+        """
+        self.grid = np.full((self.height, self.width), None)
+        for exit in self.exits:
+            self.grid[exit[1], exit[0]] = "Exit"
+        for obstacle in self.obstacles:
+            self.grid[obstacle[1], obstacle[0]] = "Obstacle"
+        for person in self.persons:
+            self.grid[int(person.yPos), int(person.xPos)] = person
+        for fire in self.fires:
+            self.grid[int(fire.yPos), int(fire.xPos)] = fire
 
     def plot(self, agents):
         """
