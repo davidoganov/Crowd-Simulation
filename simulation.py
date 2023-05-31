@@ -1,6 +1,7 @@
 import numpy as np
 from agent import Agents
 from environment import Environment
+import matplotlib.pyplot as plt
 
 class Simulation:
     """
@@ -24,6 +25,8 @@ class Simulation:
         self.timestep = 0
         self.escaped_counts = []
         self.escaped_persons = []
+        self.bottleneck_areas = []
+        self.total_person = num_people
 
         
         # Generate random positions for obstacles
@@ -34,7 +37,34 @@ class Simulation:
         # Add exits to the environment
         for exit in exit_positions:
             environment.add_exit(*exit)
-            
+     
+    def calculate_bottleneck_areas(self, threshold=2):
+        """
+        Calculate the number of bottleneck areas in the simulation.
+        A bottleneck area is defined as any location that has more than `threshold` agents.
+        """
+        num_bottleneck_areas = 0
+        for i in range(self.agents.environment.width):
+            for j in range(self.agents.environment.height):
+                # Count the number of agents in this cell
+                num_agents = sum(1 for agent in self.agents.persons if int(agent.xPos) == i and int(agent.yPos) == j)
+                if num_agents > threshold:
+                    num_bottleneck_areas += 1
+        self.bottleneck_areas.append(num_bottleneck_areas)
+        
+    @staticmethod
+    def plot_bottleneck_areas(simulation_list):
+        plt.figure(figsize=(10, 6))
+        for simulation in simulation_list:
+            # Get the count of bottleneck areas at each timestep
+            bottleneck_counts = simulation.bottleneck_areas  # directly use the numbers
+            time_steps = range(1, len(bottleneck_counts) + 1)
+            plt.plot(time_steps, bottleneck_counts, marker='o', label=f"Simulation with {simulation.total_person} persons")
+            plt.xlabel('Time step')
+            plt.ylabel('Number of bottlenecks')
+            plt.title('Bottleneck Areas over Time')
+            plt.legend()
+        plt.show()
 
     def step(self):
         """
@@ -68,7 +98,7 @@ class Simulation:
         self.agents.persons = surviving_people  # Replace old list with new one
         self.escaped_counts.append(len(self.escaped_persons))  # Record the number of escaped people
 
-
+        self.calculate_bottleneck_areas()
 
         escape_times = [p.time_to_escape for p in self.escaped_persons]
         num_escaped = len(self.escaped_persons)
