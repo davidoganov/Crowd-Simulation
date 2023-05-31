@@ -23,21 +23,24 @@ class Simulation:
         environment = Environment(env_width, env_height)
         self.agents = Agents(environment, num_people, num_fires)
         self.timestep = 0
+        self.num_escaped = 0
         self.escaped_counts = []
         self.escaped_persons = []
         self.bottleneck_areas = []
         self.total_person = num_people
+        self.obstacle_count = 0
 
         
         # Generate random positions for obstacles
         for i in range(num_obstacles):
             x, y = np.random.randint(0, env_width), np.random.randint(0, env_height)
             environment.add_obstacle(x, y)
+            self.obstacle_count += 1
 
         # Add exits to the environment
         for exit in exit_positions:
             environment.add_exit(*exit)
-     
+            
     def calculate_bottleneck_areas(self, threshold=2):
         """
         Calculate the number of bottleneck areas in the simulation.
@@ -101,13 +104,13 @@ class Simulation:
         self.calculate_bottleneck_areas()
 
         escape_times = [p.time_to_escape for p in self.escaped_persons]
-        num_escaped = len(self.escaped_persons)
+        self.num_escaped = len(self.escaped_persons)
             
         
         # Print the results
-        print(f"Number of people who escaped: {num_escaped}")
-        if num_escaped > 0:
-            print(f"Average escape time: {sum(escape_times) / num_escaped}")
+        print(f"Number of people who escaped: {self.num_escaped}")
+        if self.num_escaped > 0:
+            print(f"Average escape time: {sum(escape_times) / self.num_escaped}")
             print(f"Minimum escape time: {min(escape_times)}")
             print(f"Maximum escape time: {max(escape_times)}")
             

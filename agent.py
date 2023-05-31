@@ -20,6 +20,8 @@ class Agents:
         self.fires = []
         self.obstacles = []
         self.exits = []
+        self.panic_levels = []
+        self.dead = 0
 
         # Generate random positions for people
         for _ in range(num_people):
@@ -39,6 +41,7 @@ class Agents:
             person.update_panic()
             person.move_towards_least_congested_exit(consider_others=True)
             person.follow_crowd(self.persons)
+            self.panic_levels.append(person.panic)
 
         # Update state of each fire
         for fire in self.fires:
@@ -51,7 +54,7 @@ class Agents:
         """
 
         panic = 0
-        health = 200
+        health = 50
 
         def __init__(self, xPos: int, yPos: int, env):
             """
@@ -69,6 +72,7 @@ class Agents:
             self.time_to_escape = None  # None means person has not escaped yet
             self.social_distance = 5
             self.congestion_radius = 10  # consider persons within a distance of 10 as contributing to congestion
+            
 
 
         def update_panic(self):
@@ -182,7 +186,11 @@ class Agents:
             Returns:
                 bool: True if the person is dead, False otherwise.
             """
-            return self.health <= 0
+            if self.health <= 0:
+                self.dead += 1
+                return True
+            else:
+                return False
 
         def is_escaped(self, timestep) -> bool:
             if (self.xPos, self.yPos) in self.environment.exits and self.time_to_escape is None:
@@ -239,4 +247,3 @@ class Agents:
                     person.health -= 1  # Fire decreases health by 1 unit
                 elif distance < 5:  # Fire affects person if they are within 5 units, but less so than if they are within 3 units
                     person.health -= 0.5  # Fire decreases health by 0.5 units
-
